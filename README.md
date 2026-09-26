@@ -12,7 +12,7 @@ An enterprise-grade geospatial machine learning intelligence platform and intera
 
 ## 🚀 Live Demo
 
-- **Production URL:** [https://californiawildfire-prediction-digitaltwin.streamlit.app/](https://californiawildfire-prediction-digitaltwin.streamlit.app/) *(or local: `http://localhost:8501`)*
+- **Production URL:** [https://california-wildfire.streamlit.app/](https://california-wildfire.streamlit.app/) *(or local: `http://localhost:8501`)*
 - **GitHub Repository:** [https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin](https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin)
 
 ---

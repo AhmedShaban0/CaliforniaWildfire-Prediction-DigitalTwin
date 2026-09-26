@@ -1,0 +1,173 @@
+{
+  "target": "fire_next_24h",
+  "model_name": "RandomForestClassifier",
+  "best_params": {
+    "min_samples_leaf": 5,
+    "max_features": 0.5,
+    "max_depth": null,
+    "class_weight": null
+  },
+  "feature_set": "+ location",
+  "features": [
+    "u10",
+    "v10",
+    "t2m_celsius",
+    "d2m_celsius",
+    "sp",
+    "tp",
+    "land_cover",
+    "elevation",
+    "ndvi_scaled",
+    "evi_scaled",
+    "pixel_reliability",
+    "vi_quality",
+    "wind_speed",
+    "temp_dewpoint_spread",
+    "month_sin",
+    "month_cos",
+    "hour_sin",
+    "hour_cos",
+    "rel_humidity",
+    "vpd",
+    "doy_sin",
+    "doy_cos",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "tp_sum_24h",
+    "tp_sum_7d",
+    "tp_sum_30d",
+    "vpd_mean_24h",
+    "vpd_mean_7d",
+    "t2m_mean_7d",
+    "wind_mean_24h",
+    "latitude",
+    "longitude"
+  ],
+  "numeric_features": [
+    "u10",
+    "v10",
+    "t2m_celsius",
+    "d2m_celsius",
+    "sp",
+    "tp",
+    "elevation",
+    "ndvi_scaled",
+    "evi_scaled",
+    "pixel_reliability",
+    "vi_quality",
+    "wind_speed",
+    "temp_dewpoint_spread",
+    "month_sin",
+    "month_cos",
+    "hour_sin",
+    "hour_cos",
+    "rel_humidity",
+    "vpd",
+    "doy_sin",
+    "doy_cos",
+    "wind_dir_sin",
+    "wind_dir_cos",
+    "tp_sum_24h",
+    "tp_sum_7d",
+    "tp_sum_30d",
+    "vpd_mean_24h",
+    "vpd_mean_7d",
+    "t2m_mean_7d",
+    "wind_mean_24h",
+    "latitude",
+    "longitude"
+  ],
+  "categorical_features": [
+    "land_cover"
+  ],
+  "land_cover_categories": [
+    1.0,
+    2.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    11.0,
+    12.0,
+    13.0,
+    16.0,
+    17.0
+  ],
+  "feature_definitions": {
+    "t2m_celsius": "t2m - 273.15",
+    "d2m_celsius": "d2m - 273.15",
+    "ndvi_scaled": "ndvi * 0.0001",
+    "evi_scaled": "evi * 0.0001",
+    "wind_speed": "sqrt(u10^2 + v10^2)",
+    "temp_dewpoint_spread": "t2m_celsius - d2m_celsius",
+    "month_sin": "sin(2*pi*month/12)",
+    "month_cos": "cos(2*pi*month/12)",
+    "hour_sin": "sin(2*pi*hour/24), hour in UTC",
+    "hour_cos": "cos(2*pi*hour/24), hour in UTC",
+    "rel_humidity": "100 * es(d2m_celsius) / es(t2m_celsius), clipped to [0, 100]",
+    "vpd": "es(t2m_celsius) - es(d2m_celsius) in kPa, clipped at 0; es(T) = 0.6108 * exp(17.27 * T / (T + 237.3))",
+    "doy_sin": "sin(2*pi*day_of_year/365.25)",
+    "doy_cos": "cos(2*pi*day_of_year/365.25)",
+    "wind_dir_sin": "sin(atan2(-u10, -v10))",
+    "wind_dir_cos": "cos(atan2(-u10, -v10))",
+    "tp_sum_24h": "sum of tp over the last 24 hourly steps, including the current one",
+    "tp_sum_7d": "sum of tp over the last 168 hourly steps",
+    "tp_sum_30d": "sum of tp over the last 720 hourly steps",
+    "vpd_mean_24h": "mean of hourly VPD over the last 24 steps",
+    "vpd_mean_7d": "mean of hourly VPD over the last 168 steps",
+    "t2m_mean_7d": "mean of t2m in deg C over the last 168 steps",
+    "wind_mean_24h": "mean of hourly wind_speed over the last 24 steps",
+    "latitude": "grid-cell latitude",
+    "longitude": "grid-cell longitude"
+  },
+  "winsorization_bounds": {
+    "u10": [
+      -5.140126937866211,
+      8.305395050048872
+    ],
+    "v10": [
+      -6.942195907592773,
+      7.403391632080087
+    ],
+    "d2m": [
+      251.76108799743653,
+      292.8152678222657
+    ],
+    "t2m": [
+      262.01356365966797,
+      317.7478054199221
+    ],
+    "sp": [
+      71800.3743125,
+      102297.0
+    ],
+    "tp": [
+      0.0,
+      0.0038971900939941406
+    ]
+  },
+  "decision_threshold": 0.2507388167388168,
+  "threshold_strategy": "fbeta",
+  "beta": 2.0,
+  "probability_correction": {
+    "method": "prior_shift_odds",
+    "training_effective_prior": 0.2715625,
+    "natural_fire_rate": 0.06044186971301727
+  },
+  "validation_pr_auc": 0.442713468548693,
+  "validation_f1_at_best_threshold": 0.4086329997065824,
+  "validation_fbeta_at_best_threshold": 0.48436461440959605,
+  "test_scores": {
+    "threshold": 0.2507388167388168,
+    "pr_auc": 0.4862585619521749,
+    "roc_auc": 0.8844204228287746,
+    "precision": 0.2908167747149458,
+    "recall": 0.7078166424356452,
+    "f1": 0.41225328435340264,
+    "fbeta": 0.5500687876753754,
+    "accuracy": 0.8820025,
+    "alert_rate": 0.1422975
+  }
+}

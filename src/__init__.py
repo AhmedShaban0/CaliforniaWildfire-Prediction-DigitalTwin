@@ -1,0 +1,3 @@
+"""
+California Wildfire Prediction Package
+"""

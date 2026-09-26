@@ -306,6 +306,9 @@ def render_overview_page():
                         alert_label_ov = "ALERT ELEVATED" if is_alert_ov else "BASELINE NORMAL"
                         alert_bg_ov = COLOR_FIRE_RED if is_alert_ov else COLOR_GREEN
 
+                        veg_src_ov = cell_meta.get("vegetation_source", "MODIS MOD13Q1 (16-day Earth observation composite)")
+                        veg_dt_ov = cell_meta.get("vegetation_obs_date", cell_meta.get("latest_observation", "Latest Available"))
+
                         # Forecast Result Card (rendered cleanly)
                         html_ov_res = f"""
 <div class="app-prediction-panel" style="border: 2px solid {tier_color_ov};">
@@ -348,7 +351,7 @@ def render_overview_page():
         Provider: <b>{fc_data['provider']}</b> &nbsp;|&nbsp;
         Retrieved: <code>{fc_data['retrieval_time']}</code><br/>
         Valid Target: <code>{fc_data['forecast_time'].strftime('%Y-%m-%d %H:%M UTC')}</code><br/>
-        Vegetation Observation: <code>{cell_meta['vegetation_source']} ({cell_meta['vegetation_obs_date']})</code>
+        Vegetation Observation: <code>{veg_src_ov} ({veg_dt_ov})</code>
     </div>
 </div>
 """
@@ -379,9 +382,12 @@ def render_overview_page():
                             mode_label="Overview Live Forecast",
                             height=360,
                         )
-                except Exception as e:
-                    st.error(f"Inference Blocked: {str(e)}")
+                except ValueError as ve:
+                    st.error(f"Weather / Input Verification Error: {ve}")
                     st.info("Live prediction was blocked because required weather data could not be verified from the API. The system refuses to use synthetic or placeholder fallback data.")
+                except Exception as e:
+                    logger.exception(f"Unexpected error in overview live forecast: {e}")
+                    st.error(f"Inference Blocked: {str(e)}")
 
     # 4. Numbered Pipeline / Process Workflow Section
     render_section_header("🔄 Pipeline & Architecture Workflow", tag="END-TO-END SPECIFICATION")

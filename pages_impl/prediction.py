@@ -407,11 +407,12 @@ def render_prediction_page():
             # Static and Vegetation layer preview
             try:
                 static_meta = get_cell_static_and_vegetation(f_lat, f_lon)
-                is_water = static_meta["is_water"]
-                elev_val = static_meta["elevation"]
-                lc_val = static_meta["land_cover"]
-                lc_name_val = static_meta["land_cover_name"]
-                veg_date_val = static_meta["vegetation_obs_date"]
+                is_water = static_meta.get("is_water", False)
+                elev_val = static_meta.get("elevation", 0.0)
+                lc_val = static_meta.get("land_cover", 0.0)
+                lc_name_val = static_meta.get("land_cover_name", "Unknown")
+                veg_date_val = static_meta.get("vegetation_obs_date", static_meta.get("latest_observation", "Latest Available"))
+                veg_source_val = static_meta.get("vegetation_source", "MODIS MOD13Q1 composite")
 
                 if is_water:
                     st.warning(f"⚠️ Selected coordinate (`{f_lat:.2f}°N, {abs(f_lon):.2f}°W`) is classified as open water/ocean. Wildland fire modeling requires terrestrial land cells.")
@@ -420,7 +421,7 @@ def render_prediction_page():
                     <div style="background-color: {COLOR_DEEP_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 10px 12px; margin-top: 8px; font-size: 0.8rem; line-height: 1.5;">
                         <span style="color: {COLOR_GREEN}; font-weight: 600;">✓ TERRESTRIAL GRID CELL RESOLVED</span><br/>
                         <b>Elevation:</b> {elev_val:.0f} m &nbsp;|&nbsp; <b>Land Cover:</b> {lc_name_val}<br/>
-                        <b>Latest Spaceborne Vegetation:</b> {veg_date_val} (MODIS MOD13Q1 composite)
+                        <b>Latest Spaceborne Vegetation:</b> {veg_date_val} ({veg_source_val})
                     </div>
                     """)
             except Exception as e:
@@ -509,6 +510,8 @@ def render_prediction_page():
                             tier_color_f = RISK_TIER_COLORS.get(tier_f, COLOR_TEXT_SECONDARY)
                             alert_label_f = "ALERT ELEVATED" if is_alert_f else "BASELINE NORMAL"
                             alert_bg_f = COLOR_FIRE_RED if is_alert_f else COLOR_GREEN
+                            veg_src_pred = cell_meta.get("vegetation_source", "MODIS MOD13Q1 (16-day Earth observation composite)")
+                            veg_dt_pred = cell_meta.get("vegetation_obs_date", cell_meta.get("latest_observation", "Latest Available"))
 
                             # 5. Display Prediction Result Panel
                             render_html(f"""
@@ -552,7 +555,7 @@ def render_prediction_page():
                                     Provider: <b>{fc_data['provider']}</b><br/>
                                     Retrieved: <code>{fc_data['retrieval_time']}</code><br/>
                                     Valid Forecast Timestamp: <code>{fc_data['forecast_time'].strftime('%Y-%m-%d %H:%M UTC')}</code><br/>
-                                    Vegetation Layer: <code>{cell_meta['vegetation_source']} ({cell_meta['vegetation_obs_date']})</code>
+                                    Vegetation Layer: <code>{veg_src_pred} ({veg_dt_pred})</code>
                                 </div>
                             </div>
                             """)
@@ -599,9 +602,13 @@ def render_prediction_page():
                                 height=440,
                             )
 
+                    except ValueError as ve:
+                        st.error(f"Inference Blocked: {str(ve)}")
+                        st.info("The forecast-backed prediction was blocked because required weather or terrain inputs could not be verified from official sources. The system refuses to use fake or synthetic fallback data.")
                     except Exception as e:
-                        st.error(f"Inference Blocked: {str(e)}")
-                        st.info("The forecast-backed prediction was blocked because required weather data could not be verified from the API. The system refuses to use fake or synthetic fallback data.")
+                        import logging
+                        logging.getLogger(__name__).exception("Unexpected exception in forecast prediction pipeline")
+                        st.error(f"Prediction Error: An unexpected error occurred ({type(e).__name__}: {str(e)})")
 
     # Shared Operational Scope Notice
     render_operational_notice()

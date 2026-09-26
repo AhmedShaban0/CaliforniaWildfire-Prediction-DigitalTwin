@@ -364,6 +364,8 @@ def fetch_open_meteo_forecast(lat: float, lon: float, target_datetime_str: str) 
     from datetime import datetime, timezone
 
     target_dt = pd.Timestamp(target_datetime_str)
+    if target_dt.tzinfo is not None:
+        target_dt = target_dt.tz_convert("UTC").tz_localize(None)
     # Ensure coordinates are within California bounding box
     if not (32.0 <= lat <= 43.0 and -125.0 <= lon <= -113.5):
         raise ValueError(
@@ -477,12 +479,20 @@ def get_cell_static_and_vegetation(lat: float, lon: float) -> dict:
                 elev = float(nearest["elevation"])
                 lc = float(nearest["land_cover"])
                 is_water = bool(lc == 17.0 or np.isnan(lc))
-                latest_vt_str = str(nearest["latest_observation"])
+                latest_vt_str = (
+                    str(nearest["vegetation_obs_date"]) if "vegetation_obs_date" in nearest and pd.notnull(nearest["vegetation_obs_date"])
+                    else str(nearest.get("latest_observation", "2025-12-31 23:00 UTC"))
+                )
+                if not latest_vt_str.endswith("UTC") and not latest_vt_str.endswith("Z"):
+                    latest_vt_str = latest_vt_str + " UTC"
+
                 ndvi = float(nearest["ndvi"])
                 evi = float(nearest["evi"])
                 pixel_rel = float(nearest["pixel_reliability"])
                 vi_qual = float(nearest["vi_quality"])
                 lc_name = LAND_COVER_LABELS.get(lc, f"Class {lc:.0f}")
+                veg_source = str(nearest.get("vegetation_source", "MODIS MOD13Q1 (16-day Earth observation composite)"))
+
                 return {
                     "cell_latitude": cell_lat,
                     "cell_longitude": cell_lon,
@@ -491,6 +501,8 @@ def get_cell_static_and_vegetation(lat: float, lon: float) -> dict:
                     "land_cover_name": lc_name,
                     "is_water": is_water,
                     "latest_observation": latest_vt_str,
+                    "vegetation_obs_date": latest_vt_str,
+                    "vegetation_source": veg_source,
                     "ndvi": ndvi,
                     "evi": evi,
                     "pixel_reliability": pixel_rel,
@@ -533,6 +545,7 @@ def get_cell_static_and_vegetation(lat: float, lon: float) -> dict:
         "pixel_reliability": pixel_rel,
         "vi_quality": vi_qual,
         "vegetation_obs_date": latest_vt_str,
+        "latest_observation": latest_vt_str,
         "vegetation_source": "MODIS MOD13Q1 (16-day Earth observation composite)",
     }
 

@@ -1,12 +1,10 @@
 """
 Data and Methodology Page - California Wildfire Prediction System
-Mathematical formulations, satellite integration, and validation design.
-Matches reference layout:
-- Main hero banner with upper-left logo tile + pill.
-- Emoji-led section headings.
-- Clean multi-sensor remote sensing table.
-- Detailed panels on zero-leakage 24h embargo, odds-ratio prior-shift calibration, and scientific limitations.
-- Operational notice.
+Mathematical formulations, satellite integration, and validation design:
+- Multi-sensor remote sensing integration matrix (ERA5, FIRMS, MODIS, SRTM).
+- Zero-leakage chronological split with 24-hour causal embargo buffers.
+- Bayes-optimal odds-ratio prior-shift calibration formula.
+- Scientific limitations and physical boundary assumptions.
 """
 import streamlit as st
 from src.theme import (
@@ -33,19 +31,19 @@ def render_methodology_page():
     # 1. Main Landing Hero Banner
     render_main_hero(
         title="Data Architecture & Methodology",
-        subtitle="Multi-sensor satellite fusion, chronological validation embargoes, and prior-shift odds correction for next-24-hour wildfire risk estimation.",
-        eyebrow="🛰️ DATA ARCHITECTURE",
+        subtitle="Multi-sensor satellite fusion, chronological validation embargoes, and Bayesian odds-ratio calibration for next-24-hour wildfire risk estimation.",
+        eyebrow="🛰️ SCIENTIFIC METHODOLOGY",
     )
 
     # 2. Multi-Sensor Integration Table
-    render_section_header("🛰️ Multi-Sensor Remote Sensing & Reanalysis Pipeline", tag="INPUT SENSORS")
+    render_section_header("🛰️ Multi-Sensor Remote Sensing & Reanalysis Matrix", tag="EARTH OBSERVATION SOURCES")
 
     render_html(f"""
-    <div style="background-color: {COLOR_DEEP_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 10px; overflow: hidden; margin-bottom: 1.75rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);">
-        <table style="width: 100%; border-collapse: collapse; font-size: 0.86rem; color: {COLOR_TEXT_PRIMARY};">
+    <div style="background-color: {COLOR_DEEP_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 10px; overflow-x: auto; margin-bottom: 1.75rem; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.86rem; color: {COLOR_TEXT_PRIMARY}; min-width: 650px;">
             <thead>
                 <tr style="background-color: {COLOR_ELEVATED}; border-bottom: 1px solid {COLOR_BORDER}; text-align: left;">
-                    <th style="padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">Source Sensor / Product</th>
+                    <th style="padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">Source / Sensor</th>
                     <th style="padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">Parameters Extracted</th>
                     <th style="padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">Cadence</th>
                     <th style="padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">Spatial Alignment</th>
@@ -53,34 +51,34 @@ def render_methodology_page():
             </thead>
             <tbody>
                 <tr style="border-bottom: 1px solid {COLOR_BORDER};">
-                    <td style="padding: 12px 16px; font-weight: 700;">Copernicus ERA5</td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: #FFFFFF;">Copernicus ERA5</td>
                     <td style="padding: 12px 16px;">2m Air Temp (t2m), Dewpoint (d2m), 10m Wind (u10, v10), Surface Pressure (sp), Total Precip (tp)</td>
                     <td style="padding: 12px 16px; color: {COLOR_TEXT_SECONDARY};">Hourly (2024–2025)</td>
-                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace;">0.25° (~25 km)</td>
+                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace; color: {COLOR_WARM_ORANGE};">0.25° (~25 km)</td>
                 </tr>
                 <tr style="border-bottom: 1px solid {COLOR_BORDER};">
-                    <td style="padding: 12px 16px; font-weight: 700;">NASA FIRMS (VIIRS / MODIS)</td>
-                    <td style="padding: 12px 16px;">Thermal active fire anomalies, Fire Radiative Power (FRP), scan geometry</td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: #FFFFFF;">NASA FIRMS (VIIRS / MODIS)</td>
+                    <td style="padding: 12px 16px;">Thermal active fire anomalies, Fire Radiative Power (FRP), line-of-sight detections</td>
                     <td style="padding: 12px 16px; color: {COLOR_TEXT_SECONDARY};">Sub-daily Swath Overpasses</td>
-                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace;">Spatially Binned to 0.25°</td>
+                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace; color: {COLOR_FIRE_RED};">Binned to 0.25° Cells</td>
                 </tr>
                 <tr style="border-bottom: 1px solid {COLOR_BORDER};">
-                    <td style="padding: 12px 16px; font-weight: 700;">MODIS MCD12Q1</td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: #FFFFFF;">MODIS MCD12Q1</td>
                     <td style="padding: 12px 16px;">13 IGBP Land Cover Classes (Forest, Shrubland, Savanna, Grassland, Barren, Cropland)</td>
                     <td style="padding: 12px 16px; color: {COLOR_TEXT_SECONDARY};">Annual Composite</td>
-                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace;">Resampled to 0.25°</td>
+                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace; color: {COLOR_GREEN};">Resampled to 0.25°</td>
                 </tr>
                 <tr style="border-bottom: 1px solid {COLOR_BORDER};">
-                    <td style="padding: 12px 16px; font-weight: 700;">MODIS MOD13Q1</td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: #FFFFFF;">MODIS MOD13Q1</td>
                     <td style="padding: 12px 16px;">NDVI & EVI Vegetation Greenness, Canopy Moisture & Foliage Dynamics</td>
                     <td style="padding: 12px 16px; color: {COLOR_TEXT_SECONDARY};">16-day Composite</td>
-                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace;">Forward-filled to Hourly</td>
+                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace; color: {COLOR_GOLD};">Forward-filled to Hourly</td>
                 </tr>
                 <tr>
-                    <td style="padding: 12px 16px; font-weight: 700;">NASA SRTM</td>
-                    <td style="padding: 12px 16px;">Digital Elevation Model (meters above sea level), Slope & Aspect proxies</td>
+                    <td style="padding: 12px 16px; font-weight: 700; color: #FFFFFF;">NASA SRTM</td>
+                    <td style="padding: 12px 16px;">Digital Elevation Model (meters above sea level), Topographic Slope proxies</td>
                     <td style="padding: 12px 16px; color: {COLOR_TEXT_SECONDARY};">Static 1 Arc-Second</td>
-                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace;">Averaged to 0.25°</td>
+                    <td style="padding: 12px 16px; font-family: ui-monospace, monospace; color: {COLOR_TEXT_SECONDARY};">Averaged to 0.25°</td>
                 </tr>
             </tbody>
         </table>
@@ -103,7 +101,7 @@ def render_methodology_page():
                 <b style="color: {COLOR_WARM_ORANGE};">Chronological Partitioning:</b><br/>
                 • <b>Train:</b> Historical 2024 hourly observations.<br/>
                 • <b>Validation:</b> Late 2024 partition used solely for threshold calibration (F₂).<br/>
-                • <b>Test:</b> Held-out 2025 sequence (unseen during all training & tuning).
+                • <b>Test:</b> Held-out 2025 sequence (strictly unseen during all training & tuning).
             </div>
             <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.5;">
                 A strict <b>24-hour temporal embargo</b> isolates training horizons from test observation windows, ensuring no antecedent rolling window leaks forward across the partition boundaries.

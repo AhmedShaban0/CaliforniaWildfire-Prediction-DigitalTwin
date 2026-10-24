@@ -1,8 +1,9 @@
 """
 California Wildfire Prediction - California Fire Atlas
 Entry point for multi-page geospatial environmental intelligence console.
-Matches the reference design layout:
-- Left sidebar with clean button-style navigation and prominent bottom branded project card.
+Layout features:
+- Left sidebar with branded header, real-time status pill, high-contrast active navigation,
+  and comprehensive metadata footer.
 - Direct routing to all verified pages with shared design tokens.
 """
 import os
@@ -31,14 +32,23 @@ st.set_page_config(
 )
 
 # 2. Apply Custom Atlas Design System & CSS
-from src.theme import apply_theme, render_sidebar_project_card
+from src.theme import (
+    apply_theme,
+    render_sidebar_header,
+    render_sidebar_project_card,
+    render_html,
+    COLOR_TEXT_SECONDARY,
+)
 apply_theme()
 
 # 3. Sidebar Navigation & Branding
 with st.sidebar:
+    render_sidebar_header()
+
     nav_items = [
-        ("🏠 Overview", "Overview"),
         ("🔥 Wildfire Prediction", "Wildfire Prediction"),
+        ("🏠 Overview", "Overview"),
+        ("🗺️ Interactive Map", "Interactive Map"),
         ("🌐 3D Digital Twin", "3D Digital Twin"),
         ("📊 Model Performance", "Model Performance"),
         ("🛰️ Data & Methodology", "Data & Methodology"),
@@ -46,17 +56,18 @@ with st.sidebar:
     ]
 
     if "current_page" not in st.session_state:
-        st.session_state["current_page"] = "Overview"
+        st.session_state["current_page"] = "Wildfire Prediction"
 
     # Handle programmatic nav_target redirects
     if "nav_target" in st.session_state:
         target = st.session_state.pop("nav_target")
-        for label, code in nav_items:
-            if target.lower() in code.lower() or target.lower() in label.lower():
+        all_codes = ["Overview", "Wildfire Prediction", "Interactive Map", "3D Digital Twin", "Model Performance", "Data & Methodology", "About"]
+        for code in all_codes:
+            if target.lower() in code.lower():
                 st.session_state["current_page"] = code
                 break
 
-    # Standard clickable button-style navigation (NO circular radios)
+    # High-contrast navigation items matching reference
     for label, code in nav_items:
         is_active = (st.session_state["current_page"] == code)
         btn_type = "primary" if is_active else "secondary"
@@ -70,7 +81,7 @@ with st.sidebar:
                 st.session_state["current_page"] = code
                 st.rerun()
 
-    # Branded project card near bottom of sidebar with enlarged logo
+    # Branded project card near bottom of sidebar
     render_sidebar_project_card()
 
 page = st.session_state["current_page"]
@@ -78,6 +89,7 @@ page = st.session_state["current_page"]
 # 4. Page Routing
 from pages_impl.overview import render_overview_page
 from pages_impl.prediction import render_prediction_page
+from pages_impl.interactive_map import render_interactive_map_page
 from pages_impl.digital_twin import render_digital_twin_page
 from pages_impl.performance import render_performance_page
 from pages_impl.methodology import render_methodology_page
@@ -87,6 +99,8 @@ if page == "Overview":
     render_overview_page()
 elif page == "Wildfire Prediction":
     render_prediction_page()
+elif page == "Interactive Map":
+    render_interactive_map_page()
 elif page == "3D Digital Twin":
     render_digital_twin_page()
 elif page == "Model Performance":

@@ -1,13 +1,14 @@
 """
 3D Digital Twin Page - California Wildfire Prediction System
-Full-canvas interactive 3D geospatial visualization with real SRTM elevation and aligned environmental layers.
-Matches the reference layout:
-- Main hero banner with upper-left logo tile + pill.
-- Emoji-led section heading: "🌐 California 3D Digital Twin".
-- Compact horizontal controls above the full-width WebGL map.
-- Dominant interactive 3D map canvas.
-- Telemetry status strip and physical boundary notice below.
+Full-canvas interactive geospatial visualization with real California geography:
+- Multi-basemap support (Terrain & Geography, Satellite Imagery, Streets, Dark Analytical).
+- Transparent 0.25° grid cell polygons showing 24h satellite fire detection risk without obscuring roads, cities, and terrain.
+- Interactive toggle between 2D Geographic Flat view and 3D Volumetric Extrusion.
+- Direct layer opacity control.
+- Separate, distinct NASA FIRMS thermal anomaly detection pins.
+- Statewide telemetry status strip and physical boundary notice.
 """
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -15,6 +16,7 @@ from src.theme import (
     render_main_hero,
     render_section_header,
     render_operational_notice,
+    render_risk_legend,
     render_html,
     COLOR_BORDER,
     COLOR_DEEP_NAVY,
@@ -35,15 +37,19 @@ from src.data_loader import (
     CURATED_SCENARIOS,
     load_spatial_slice_with_predictions,
 )
-from src.twin_3d import render_pydeck_3d_twin, render_plotly_topographic_twin
+from src.twin_3d import (
+    render_pydeck_3d_twin,
+    render_plotly_topographic_twin,
+    BASEMAP_CATALOG,
+)
 
 
 def render_digital_twin_page():
     # 1. Main Landing Hero Banner
     render_main_hero(
-        title="California 3D Digital Twin",
-        subtitle="Interactive 3D volumetric topographic twin fusing Copernicus ERA5 atmospheric reanalysis, SRTM surface elevation, and spaceborne active fire risk across California.",
-        eyebrow="🌐 GEOSPATIAL 3D VISUALIZATION",
+        title="California Wildfire Geospatial Twin",
+        subtitle="Interactive geospatial environment fusing Copernicus ERA5 atmospheric reanalysis, SRTM surface elevation, and spaceborne active fire risk across California with recognizable geographic basemaps.",
+        eyebrow="🌐 GEOSPATIAL 3D DIGITAL TWIN",
     )
 
     ds, ds_err = open_dataset()
@@ -52,24 +58,18 @@ def render_digital_twin_page():
         st.error(f"NetCDF dataset `master_dataset_2024_2025.nc` is required. {ds_err}")
         return
 
-    meta = get_dataset_metadata(ds) if ds is not None else {
-        "total_cells": 1677,
-        "lat_range": (32.5, 42.0),
-        "lon_range": (-124.5, -114.0),
-        "total_time_steps": 17544,
-    }
+    # 2. Section Heading
+    render_section_header("🌐 California Geospatial Environment", tag="WEBGL INTERACTIVE MAP")
 
-    # 2. Emoji-led Section Heading
-    render_section_header("🌐 California 3D Digital Twin", tag="FULL-VIEWPORT WEBGL CANVASES")
-
-    # 3. Compact Horizontal Control Bar
-    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4 = st.columns([3, 2.2, 2, 1.8], gap="small")
+    # 3. Control Bar
+    ctrl_col1, ctrl_col2, ctrl_col3, ctrl_col4, ctrl_col5 = st.columns([2.6, 2.2, 2.0, 1.8, 1.4], gap="small")
 
     with ctrl_col1:
         sc_name = st.selectbox(
             "Temporal Snapshot:",
             options=list(CURATED_SCENARIOS.keys()),
             index=0,
+            help="Select an environmental scenario from 2024-2025.",
         )
         selected_timestamp = CURATED_SCENARIOS[sc_name]["timestamp"]
 
@@ -85,19 +85,35 @@ def render_digital_twin_page():
                 "FIRMS Active Fire",
             ],
             index=0,
+            help="Variable mapped to cell color.",
         )
 
     with ctrl_col3:
-        engine_choice = st.selectbox(
-            "Rendering Engine:",
-            options=["PyDeck 3D Map (WebGL)", "Plotly 3D Orbital Scatter"],
+        basemap_choice = st.selectbox(
+            "Basemap Style:",
+            options=list(BASEMAP_CATALOG.keys()),
             index=0,
+            help="Select a geographic basemap showing California roads, coastline, and topography.",
         )
 
     with ctrl_col4:
-        with st.popover("⚙️ Camera & Tilt"):
-            pitch_val = st.slider("Pitch (°)", min_value=0, max_value=60, value=48, step=2)
-            bearing_val = st.slider("Bearing (°)", min_value=-180, max_value=180, value=-18, step=2)
+        view_mode = st.selectbox(
+            "Perspective Mode:",
+            options=["2D Geographic Map", "3D Volumetric (Extruded)"],
+            index=0,
+            help="Toggle between flat 2D choropleth polygons and 3D extruded terrain blocks.",
+        )
+
+    with ctrl_col5:
+        with st.popover("⚙️ Controls"):
+            engine_choice = st.radio(
+                "Engine:",
+                options=["PyDeck (WebGL)", "Plotly 3D Scatter"],
+                index=0,
+            )
+            opacity_val = st.slider("Layer Opacity", min_value=0.2, max_value=0.9, value=0.55, step=0.05, help="Adjust transparency so underlying geography is readable.")
+            pitch_val = st.slider("Camera Pitch (°)", min_value=0, max_value=60, value=38 if view_mode.startswith("3D") else 0, step=2)
+            bearing_val = st.slider("Camera Bearing (°)", min_value=-180, max_value=180, value=-14, step=2)
             elev_scale = st.slider("Elevation Scale", min_value=1.0, max_value=6.0, value=2.5, step=0.5)
 
     # 4. Load Spatial Data with Model Risk
@@ -108,21 +124,27 @@ def render_digital_twin_page():
         st.warning("No terrestrial grid cells found for the selected timestamp.")
         return
 
-    # 5. Dominant Interactive 3D Canvas
-    if engine_choice.startswith("PyDeck"):
+    # 5. Interactive Map Canvas
+    is_pydeck = engine_choice.startswith("PyDeck") if "engine_choice" in locals() else True
+
+    if is_pydeck:
         render_pydeck_3d_twin(
             slice_df,
             color_by=layer_option,
+            basemap_style=basemap_choice,
+            view_mode=view_mode,
+            layer_opacity=opacity_val if "opacity_val" in locals() else 0.55,
             elevation_scale=elev_scale if "elev_scale" in locals() else 2.5,
-            pitch=float(pitch_val) if "pitch_val" in locals() else 48.0,
-            bearing=float(bearing_val) if "bearing_val" in locals() else -18.0,
-            height=620,
+            pitch=float(pitch_val) if "pitch_val" in locals() else (38.0 if view_mode.startswith("3D") else 0.0),
+            bearing=float(bearing_val) if "bearing_val" in locals() else -14.0,
+            height=600,
+            show_legend=True,
         )
     else:
         render_plotly_topographic_twin(
             slice_df,
             color_by=layer_option,
-            height=620,
+            height=600,
         )
 
     # 6. Telemetry Status Strip
@@ -154,7 +176,7 @@ def render_digital_twin_page():
             <div style="font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY};">California terrestrial average</div>
         </div>
         <div>
-            <div style="font-size: 0.72rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">NASA FIRMS DETECTIONS</div>
+            <div style="font-size: 0.72rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">NASA SATELLITE DETECTIONS</div>
             <div style="font-size: 1.25rem; font-weight: 700; color: {COLOR_CRIMSON if fires_count > 0 else COLOR_GREEN};">{fires_count} active</div>
             <div style="font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY};">MODIS / VIIRS spaceborne</div>
         </div>
@@ -165,7 +187,7 @@ def render_digital_twin_page():
     render_html(f"""
     <div style="background-color: {COLOR_DARK_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 0.85rem 1.15rem; margin-top: 1rem; font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.5;">
         <b style="color: {COLOR_GOLD};">Physical Scope Notice:</b>
-        The 3D Digital Twin renders atmospheric condition grids, terrain elevation, and 24-hour ignition detection probabilities. It does <u>not</u> simulate fluid dynamics (CFD), fire spread fronts, ember casting, or smoke dispersion.
+        The Geospatial Digital Twin renders atmospheric condition grids, terrain elevation, and 24-hour ignition detection probabilities for 0.25° (~25 km) cells. It does <u>not</u> simulate fluid dynamics, active flame propagation, combustion fronts, or ember transport.
     </div>
     """)
 

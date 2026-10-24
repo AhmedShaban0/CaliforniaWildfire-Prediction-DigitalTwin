@@ -1,15 +1,13 @@
 """
 Overview Page - California Wildfire Prediction System
-Executive landing console:
-1. Hero banner with upper-left light logo tile + pill.
-2. Two-column section:
-   - Left: Project Objective & Methodology (clean formatted rendering without raw HTML leaks).
-   - Right: Statewide Spatial Situational View (historical weather snapshot & 3D preview).
-3. Compact Real-Time API Forecast & Prediction section:
-   - Directly executes the real Open-Meteo forecast prediction workflow from the Overview page.
-   - Reuses shared inference pipeline, displaying forecast provenance, weather metrics, and single-cell 3D spotlight.
-4. Numbered pipeline/process section using workflow cards.
-5. Operational boundary & scientific governance disclosure.
+Executive console providing:
+1. Prominent hero banner with project identity.
+2. Executive Summary & Key Indicators at a glance with brief explanations of the numbers.
+3. Statewide California Geographic Risk Map with real basemaps (Terrain, Satellite, Streets),
+   transparent 0.25° grid cells (~25 km), clear color legend, and cell inspector tooltip.
+4. Quick Live Forecast & Prediction spotlight powered by Open-Meteo and the trained model.
+5. Numbered architectural workflow cards.
+6. Scientific governance disclosure.
 """
 from datetime import datetime, date, timedelta, timezone
 import streamlit as st
@@ -18,8 +16,10 @@ import numpy as np
 from src.theme import (
     render_main_hero,
     render_section_header,
+    render_intelligence_card,
     render_workflow_card,
     render_operational_notice,
+    render_risk_legend,
     render_html,
     COLOR_BORDER,
     COLOR_DARK_NAVY,
@@ -49,152 +49,170 @@ from src.data_loader import (
     get_cell_static_and_vegetation,
     CALIFORNIA_PRESET_LOCATIONS,
 )
-from src.twin_3d import render_pydeck_3d_twin, render_single_cell_3d_twin
+from src.twin_3d import (
+    render_pydeck_3d_twin,
+    render_single_cell_3d_twin,
+    BASEMAP_CATALOG,
+)
 
 
 def render_overview_page():
     # 1. Main Landing Hero Banner
     render_main_hero(
-        title="California Wildfire Prediction",
-        subtitle="Estimating next-24-hour satellite fire detection probability across California's 0.25° grid (~25 km × 25 km) using Copernicus ERA5 reanalysis, spaceborne Earth observation, and real-time weather forecasting.",
-        eyebrow="🔥 CALIFORNIA WILDFIRE INTELLIGENCE",
+        title="California Wildfire Prediction Console",
+        subtitle="Forecasting next-24-hour spaceborne active fire detection risk across California's 0.25° grid (~25 km × 25 km) using Copernicus ERA5 reanalysis, MODIS Earth observation, and real-time weather forecasts.",
+        eyebrow="🔥 CALIFORNIA WILDFIRE RISK INTELLIGENCE",
     )
 
     schema, schema_err = load_feature_schema()
     pipeline, pipeline_err = load_pipeline()
     threshold = float(schema.get("decision_threshold", 0.2507)) if schema else 0.2507
 
-    # 2. Section: Statewide Wildfire Situational Intelligence & Project Scope
-    render_section_header("🔥 Statewide Wildfire Situational Intelligence", tag="SPATIAL RISK & METHODOLOGY")
+    # 2. Executive Summary & Key Indicators At a Glance
+    render_section_header("⚡ System Summary & Operational Metrics", tag="EXECUTIVE INDICATORS")
 
-    col_left, col_right = st.columns([1, 1], gap="large")
+    i1, i2, i3, i4 = st.columns(4)
+    with i1:
+        render_intelligence_card(
+            icon="⏱️",
+            eyebrow="FORECAST HORIZON",
+            value="24 Hours",
+            sub="Advance probability of satellite detection (fire_next_24h) under a zero-leakage causal embargo.",
+            border_color=COLOR_BORDER,
+        )
+    with i2:
+        render_intelligence_card(
+            icon="🌐",
+            eyebrow="GRID RESOLUTION",
+            value="0.25° (~25 km)",
+            sub="1,677 terrestrial California cells (~625 km² per cell) covering the entire state.",
+            border_color=COLOR_WARM_ORANGE,
+        )
+    with i3:
+        render_intelligence_card(
+            icon="🎯",
+            eyebrow="ALERT THRESHOLD",
+            value=f"{threshold:.1%}",
+            sub=f"F₂-tuned decision point (≥{threshold:.4f}) prioritizing fire capture (70.8% recall) over false alarms.",
+            border_color=COLOR_FIRE_RED,
+        )
+    with i4:
+        render_intelligence_card(
+            icon="🛰️",
+            eyebrow="LIVE METEOROLOGY",
+            value="Open-Meteo",
+            sub="Automated real-time forecast retrieval with 24h, 7d, and 30d antecedent drying history.",
+            border_color=COLOR_GREEN,
+        )
 
-    with col_left:
-        # Rendered using render_html (dedented) to prevent CommonMark 4-space code block leaks
-        html_horizon = f"""
-<div class="app-intel-card" style="height: 100%; justify-content: flex-start;">
-    <div style="font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_FIRE_ORANGE}; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.45rem;">
-        🎯 PROJECT OBJECTIVE & METHODOLOGY
-    </div>
-    <h3 style="font-size: 1.25rem; font-weight: 700; color: {COLOR_TEXT_PRIMARY}; margin: 0 0 0.75rem 0;">
-        24-Hour Advance Wildfire Forecast Horizon
-    </h3>
-    <p style="font-size: 0.88rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.6; margin-bottom: 0.85rem;">
-        The California Fire Atlas models the complex relationship between atmospheric thermodynamics, fuel moisture deficit, and spaceborne active fire ignitions across the State of California.
-    </p>
-    <div style="border-top: 1px solid {COLOR_BORDER}; padding-top: 0.85rem; margin-bottom: 0.85rem;">
-        <div style="font-weight: 600; font-size: 0.88rem; color: {COLOR_TEXT_PRIMARY}; margin-bottom: 0.25rem;">
-            ⏱️ Zero-Leakage 24-Hour Causal Embargo
-        </div>
-        <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.5;">
-            To prevent target leakage, all environmental covariates (2m temperature, dewpoint, wind vectors, vapor pressure deficit, surface precipitation) observe a strict causal embargo. The model evaluates whether a thermal detection occurs in hour <code>t+1</code> through <code>t+24</code> strictly using information available at hour <code>t</code>.
-        </div>
-    </div>
-    <div style="border-top: 1px solid {COLOR_BORDER}; padding-top: 0.85rem; margin-bottom: 0.85rem;">
-        <div style="font-weight: 600; font-size: 0.88rem; color: {COLOR_TEXT_PRIMARY}; margin-bottom: 0.25rem;">
-            🛰️ Multi-Sensor Spatiotemporal Ingestion
-        </div>
-        <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.5;">
-            Atmospheric state is continuously reconstructed from Copernicus ERA5 hourly reanalysis at 0.25° grid resolution. Vegetation and surface fuels are tracked via MODIS/VIIRS Normalized Difference Vegetation Index (NDVI), Enhanced Vegetation Index (EVI), and Land Cover classifications.
-        </div>
-    </div>
-    <div style="border-top: 1px solid {COLOR_BORDER}; padding-top: 0.85rem;">
-        <div style="font-weight: 600; font-size: 0.88rem; color: {COLOR_TEXT_PRIMARY}; margin-bottom: 0.25rem;">
-            ⚖️ Imbalanced Learning & F₂ Calibration
-        </div>
-        <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; line-height: 1.5;">
-            With a natural wildfire prevalence of only 6.04% in California, standard 0.50 probability cutoffs fail. The operational cutoff (<code>0.2507</code>) is tuned against the F₂-score, weighting recall twice as heavily as precision to minimize dangerous missed detections in critical terrain.
-        </div>
-    </div>
-</div>
-"""
-        render_html(html_horizon)
+    # 3. Section: Statewide Wildfire Situational Intelligence
+    render_section_header("🗺️ Statewide Wildfire Situational Intelligence", tag="GEOGRAPHIC RISK MAP")
 
-    with col_right:
-        # Scenario Selector & Quick Actions
-        col_scen, col_act1, col_act2 = st.columns([2.5, 1.3, 1.3])
-        with col_scen:
-            scenario_name = st.selectbox(
-                "Historical Weather Snapshot:",
-                options=list(CURATED_SCENARIOS.keys()),
-                index=0,
-                label_visibility="collapsed",
-            )
-        with col_act1:
-            if st.button("🌐 3D TWIN", use_container_width=True):
-                st.session_state["nav_target"] = "3D Digital Twin"
-                st.rerun()
-        with col_act2:
-            if st.button("🔥 PREDICT", use_container_width=True):
-                st.session_state["nav_target"] = "Wildfire Prediction"
-                st.rerun()
+    col_map_ctrl1, col_map_ctrl2, col_map_ctrl3, col_map_ctrl4 = st.columns([3, 2.3, 1.8, 1.8], gap="small")
+    with col_map_ctrl1:
+        scenario_name = st.selectbox(
+            "Historical Meteorological Snapshot:",
+            options=list(CURATED_SCENARIOS.keys()),
+            index=0,
+            help="Select verified environmental scenarios from 2024-2025 to explore regional risk distribution.",
+        )
+    with col_map_ctrl2:
+        basemap_choice = st.selectbox(
+            "Basemap Style:",
+            options=list(BASEMAP_CATALOG.keys()),
+            index=0,
+            help="Choose a real geographic basemap. All default options are free and require no API key.",
+        )
+    with col_map_ctrl3:
+        view_mode = st.selectbox(
+            "Map Perspective:",
+            options=["2D Geographic Map", "3D Volumetric (Extruded)"],
+            index=0,
+            help="Toggle between flat 2D choropleth polygons and 3D extruded terrain blocks.",
+        )
+    with col_map_ctrl4:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+        if st.button("🔥 GO TO PREDICTOR", use_container_width=True, type="secondary"):
+            st.session_state["nav_target"] = "Wildfire Prediction"
+            st.rerun()
 
-        chosen_scenario = CURATED_SCENARIOS[scenario_name]
-        ts_str = chosen_scenario["timestamp"]
+    chosen_scenario = CURATED_SCENARIOS[scenario_name]
+    ts_str = chosen_scenario["timestamp"]
 
-        with st.spinner("Extracting spatial slice and evaluating 3D model risk..."):
-            slice_df = load_spatial_slice_with_predictions(ts_str, ts_str, land_only=True)
+    with st.spinner("Extracting California grid and computing 24h model risk..."):
+        slice_df = load_spatial_slice_with_predictions(ts_str, ts_str, land_only=True)
 
-        if slice_df is not None and not slice_df.empty:
-            render_pydeck_3d_twin(
-                slice_df,
-                color_by="Model Predicted Risk",
-                elevation_scale=2.0,
-                pitch=36.0,
-                bearing=-14.0,
-                height=320,
-            )
+    if slice_df is not None and not slice_df.empty:
+        # Render the pydeck map with real California geography & transparent 0.25 deg polygons
+        render_pydeck_3d_twin(
+            slice_df,
+            color_by="Model Predicted Risk",
+            basemap_style=basemap_choice,
+            view_mode=view_mode,
+            layer_opacity=0.55,
+            elevation_scale=2.0,
+            pitch=35.0 if view_mode.startswith("3D") else 0.0,
+            bearing=-12.0 if view_mode.startswith("3D") else 0.0,
+            height=480,
+            show_legend=True,
+        )
 
-            alerts_count = int(slice_df["is_alert"].sum())
-            fires_count = int((slice_df["fire_now"] > 0).sum())
-            max_risk = slice_df["model_risk_score"].max()
+        alerts_count = int(slice_df["is_alert"].sum())
+        fires_count = int((slice_df["fire_now"] > 0).sum())
+        max_risk = slice_df["model_risk_score"].max()
+        mean_risk = slice_df["model_risk_score"].mean()
 
-            # Compact Regional Dossier Strip below map (rendered safely)
-            html_dossier = f"""
-<div style="background-color: {COLOR_DEEP_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 8px; padding: 0.85rem 1rem; margin-top: 0.75rem;">
-    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem;">
+        # Regional Dossier Strip below map
+        html_dossier = f"""
+<div style="background-color: {COLOR_DEEP_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 8px; padding: 0.85rem 1.15rem; margin-top: 0.75rem; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.35rem; flex-wrap: wrap;">
         <div style="font-weight: 700; font-size: 0.95rem; color: {COLOR_TEXT_PRIMARY};">{chosen_scenario['region_name']}</div>
-        <div style="font-family: ui-monospace, monospace; font-size: 0.72rem; color: {COLOR_WARM_ORANGE};">{ts_str} UTC</div>
+        <div style="font-family: ui-monospace, monospace; font-size: 0.75rem; color: {COLOR_WARM_ORANGE};">{ts_str} UTC &nbsp;({chosen_scenario.get('description', '')[:50]}...)</div>
     </div>
-    <div style="font-size: 0.8rem; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 0.65rem;">{chosen_scenario['description']}</div>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; text-align: center; border-top: 1px solid {COLOR_BORDER}; padding-top: 0.5rem;">
+    <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 0.65rem;">{chosen_scenario['description']}</div>
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.65rem; text-align: center; border-top: 1px solid {COLOR_BORDER}; padding-top: 0.6rem;">
         <div>
-            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">LAND CELLS</div>
-            <div style="font-weight: 700; color: {COLOR_TEXT_PRIMARY}; font-size: 0.95rem;">{len(slice_df):,}</div>
+            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace; text-transform: uppercase;">ACTIVE LAND CELLS</div>
+            <div style="font-weight: 700; color: {COLOR_TEXT_PRIMARY}; font-size: 1.05rem;">{len(slice_df):,}</div>
+            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY};">0.25° (~25 km) grid</div>
         </div>
         <div>
-            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">ALERTS (≥{threshold:.2f})</div>
-            <div style="font-weight: 700; color: {COLOR_FIRE_ORANGE}; font-size: 0.95rem;">{alerts_count} ({alerts_count / len(slice_df):.1%})</div>
+            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace; text-transform: uppercase;">ALERTS (≥{threshold:.1%})</div>
+            <div style="font-weight: 700; color: {COLOR_FIRE_ORANGE}; font-size: 1.05rem;">{alerts_count} ({alerts_count / len(slice_df):.1%})</div>
+            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY};">Operational alert state</div>
         </div>
         <div>
-            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">NASA DETECTIONS</div>
-            <div style="font-weight: 700; color: {COLOR_CRIMSON if fires_count > 0 else COLOR_GREEN}; font-size: 0.95rem;">{fires_count} active</div>
+            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace; text-transform: uppercase;">NASA SATELLITE DETECTIONS</div>
+            <div style="font-weight: 700; color: {COLOR_CRIMSON if fires_count > 0 else COLOR_GREEN}; font-size: 1.05rem;">{fires_count} active</div>
+            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY};">MODIS/VIIRS overpasses</div>
         </div>
         <div>
-            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">PEAK GRID RISK</div>
-            <div style="font-weight: 700; color: {COLOR_FIRE_RED}; font-size: 0.95rem;">{max_risk:.1%}</div>
+            <div style="font-size: 0.68rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace; text-transform: uppercase;">PEAK CELL RISK</div>
+            <div style="font-weight: 700; color: {COLOR_FIRE_RED}; font-size: 1.05rem;">{max_risk:.1%}</div>
+            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY};">Mean statewide: {mean_risk:.1%}</div>
         </div>
     </div>
 </div>
 """
-            render_html(html_dossier)
-        else:
-            st.info("Dataset `master_dataset_2024_2025.nc` not loaded. Spatial snapshot is unavailable.")
+        render_html(html_dossier)
+    else:
+        st.info("Dataset snapshot loading. If `master_dataset_2024_2025.nc` is absent, the fallback snapshot will be used.")
 
-    # 3. Compact Real-Time API Forecast & Predict Section on Overview Page
+    # 4. Quick Live Forecast & Predict Section
     render_section_header("🌐 Live Forecast & Risk Inference", tag="REAL-TIME API DISPATCH")
 
     render_html(f"""
-    <div style="font-size: 0.88rem; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 1rem;">
-        Retrieve live hourly meteorology from the <b>Open-Meteo Global Weather Model</b> for any California region, combine with spaceborne Earth observation layers, and evaluate the trained Random Forest model directly from this executive dashboard.
+    <div style="font-size: 0.88rem; color: {COLOR_TEXT_SECONDARY}; margin-bottom: 1rem; line-height: 1.55;">
+        Dispatch live weather forecasts from the <b>Open-Meteo Global Weather Model</b> for any California region,
+        combine with spaceborne vegetation observations, and evaluate the trained model directly.
     </div>
     """)
 
-    col_ov_fc_inputs, col_ov_fc_results = st.columns([1.05, 0.95], gap="large")
+    col_ov_inputs, col_ov_results = st.columns([1.05, 0.95], gap="large")
 
-    with col_ov_fc_inputs:
+    with col_ov_inputs:
         ov_preset_key = st.selectbox(
-            "California Region / Hotspot:",
+            "California Region / Benchmark Hotspot:",
             options=list(CALIFORNIA_PRESET_LOCATIONS.keys()),
             index=0,
             key="ov_fc_preset",
@@ -230,26 +248,27 @@ def render_overview_page():
         ov_local_hr = (ov_fhour - 7) % 24
         st.caption(f"📍 **{ov_preset_key}** (`{ov_lat:.2f}°N, {abs(ov_lon):.2f}°W`) &nbsp;|&nbsp; 🕒 **{ov_ts_str} UTC** ({ov_local_hr:02d}:00 PDT)")
 
-        btn_ov_predict = st.button("🌐 GET FORECAST & PREDICT", type="primary", use_container_width=True, key="ov_btn_predict")
+        btn_ov_predict = st.button("🌐 GET FORECAST & PREDICT RISK", type="primary", use_container_width=True, key="ov_btn_predict")
 
-    with col_ov_fc_results:
+    with col_ov_results:
         if btn_ov_predict:
             st.session_state["has_run_ov_forecast"] = True
             st.session_state["ov_lat"] = ov_lat
             st.session_state["ov_lon"] = ov_lon
             st.session_state["ov_ts"] = ov_ts_str
+            st.session_state["ov_region"] = ov_preset_key
 
         run_ov = st.session_state.get("has_run_ov_forecast", False)
 
         if not run_ov:
             html_await = f"""
-<div style="background-color: {COLOR_DEEP_NAVY}; border: 1px dashed {COLOR_BORDER}; border-radius: 8px; padding: 2rem 1.5rem; text-align: center; color: {COLOR_TEXT_SECONDARY};">
-    <div style="font-size: 2rem; margin-bottom: 0.5rem;">🛰️</div>
-    <div style="font-weight: 700; color: {COLOR_TEXT_PRIMARY}; font-size: 1.1rem; margin-bottom: 0.35rem;">
-        Awaiting Real-Time Forecast Request
+<div style="background-color: {COLOR_DEEP_NAVY}; border: 1px dashed {COLOR_BORDER}; border-radius: 8px; padding: 2.2rem 1.5rem; text-align: center; color: {COLOR_TEXT_SECONDARY}; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+    <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🛰️</div>
+    <div style="font-weight: 700; color: {COLOR_TEXT_PRIMARY}; font-size: 1.15rem; margin-bottom: 0.35rem;">
+        Ready for Real-Time Forecast
     </div>
-    <div style="font-size: 0.84rem; max-width: 400px; margin: 0 auto; line-height: 1.5;">
-        Select your location and target forecast date on the left, then click <b>GET FORECAST & PREDICT</b> to evaluate next-24h wildfire detection probability.
+    <div style="font-size: 0.85rem; max-width: 380px; margin: 0 auto; line-height: 1.55;">
+        Select a California hotspot on the left and click <b>GET FORECAST & PREDICT RISK</b> to retrieve live hourly weather and evaluate next-24h wildfire risk.
     </div>
 </div>
 """
@@ -258,8 +277,9 @@ def render_overview_page():
             exec_lat = st.session_state.get("ov_lat", ov_lat)
             exec_lon = st.session_state.get("ov_lon", ov_lon)
             exec_ts = st.session_state.get("ov_ts", ov_ts_str)
+            exec_region = st.session_state.get("ov_region", ov_preset_key)
 
-            with st.spinner("Connecting to Open-Meteo & computing model inference..."):
+            with st.spinner("Connecting to Open-Meteo & evaluating 24-hour wildfire risk..."):
                 try:
                     fc_data = fetch_open_meteo_forecast(exec_lat, exec_lon, exec_ts)
                     cell_meta = get_cell_static_and_vegetation(exec_lat, exec_lon)
@@ -303,61 +323,60 @@ def render_overview_page():
                         is_alert_ov = res_ov["is_alert"]
                         tier_ov = res_ov["risk_level"]
                         tier_color_ov = RISK_TIER_COLORS.get(tier_ov, COLOR_TEXT_SECONDARY)
-                        alert_label_ov = "ALERT ELEVATED" if is_alert_ov else "BASELINE NORMAL"
+                        alert_label_ov = "ELEVATED ALERT" if is_alert_ov else "NORMAL BASELINE"
                         alert_bg_ov = COLOR_FIRE_RED if is_alert_ov else COLOR_GREEN
 
-                        veg_src_ov = cell_meta.get("vegetation_source", "MODIS MOD13Q1 (16-day Earth observation composite)")
-                        veg_dt_ov = cell_meta.get("vegetation_obs_date", cell_meta.get("latest_observation", "Latest Available"))
+                        veg_src_ov = cell_meta.get("vegetation_source", "MODIS MOD13Q1 composite")
+                        veg_dt_ov = cell_meta.get("vegetation_obs_date", cell_meta.get("latest_observation", "Latest"))
 
-                        # Forecast Result Card (rendered cleanly)
+                        # Prediction result card
                         html_ov_res = f"""
 <div class="app-prediction-panel" style="border: 2px solid {tier_color_ov};">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem;">
-        <span style="font-family: ui-monospace, monospace; font-size: 0.74rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">
-            COORDINATES: {exec_lat:.2f}°N, {abs(exec_lon):.2f}°W
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+        <span style="font-family: ui-monospace, monospace; font-size: 0.75rem; color: {COLOR_TEXT_SECONDARY}; text-transform: uppercase;">
+            📍 {exec_region} ({exec_lat:.2f}°N, {abs(exec_lon):.2f}°W)
         </span>
-        <span style="background-color: {alert_bg_ov}; color: #FFFFFF; font-family: ui-monospace, monospace; font-size: 0.74rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 0.06em;">
+        <span style="background-color: {alert_bg_ov}; color: #FFFFFF; font-family: ui-monospace, monospace; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 0.06em;">
             {alert_label_ov}
         </span>
     </div>
 
-    <div style="margin-bottom: 0.85rem;">
+    <div style="margin-bottom: 0.75rem;">
         <div style="font-size: 0.72rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace; text-transform: uppercase;">
-            RAW MODEL RISK PROBABILITY
+            ESTIMATED 24-HOUR WILDFIRE DETECTION PROBABILITY
         </div>
-        <div style="font-size: 3rem; font-weight: 700; color: {tier_color_ov}; line-height: 1.1; margin: 0.2rem 0;">
+        <div style="font-size: 2.8rem; font-weight: 750; color: {tier_color_ov}; line-height: 1.1; margin: 0.2rem 0;">
             {score_ov:.1%}
         </div>
         <div style="font-size: 0.82rem; color: {COLOR_TEXT_SECONDARY};">
-            Operational Threshold: <code>{threshold:.4f}</code> &nbsp;•&nbsp; Status: <b>{'Exceeded' if is_alert_ov else 'Below Threshold'}</b>
+            Operational Cutoff: <code>{threshold:.4f}</code> &nbsp;•&nbsp; Status: <b>{'Exceeded (Alert Activated)' if is_alert_ov else 'Below Cutoff (Routine Posture)'}</b>
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; border-top: 1px solid {COLOR_BORDER}; padding-top: 0.85rem; margin-bottom: 0.85rem;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; border-top: 1px solid {COLOR_BORDER}; padding-top: 0.75rem; margin-bottom: 0.75rem;">
         <div>
-            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">PRIOR-CORRECTED PROBABILITY</div>
-            <div style="font-size: 1.45rem; font-weight: 700; color: {COLOR_TEXT_PRIMARY};">{cal_prob_ov:.1%}</div>
+            <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">PRIOR-CORRECTED RATE</div>
+            <div style="font-size: 1.35rem; font-weight: 700; color: {COLOR_TEXT_PRIMARY};">{cal_prob_ov:.1%}</div>
             <div style="font-size: 0.72rem; color: {COLOR_TEXT_SECONDARY};">Natural fire rate: 6.04%</div>
         </div>
         <div>
             <div style="font-size: 0.7rem; color: {COLOR_TEXT_SECONDARY}; font-family: ui-monospace, monospace;">RISK CLASSIFICATION</div>
-            <div style="font-size: 1.45rem; font-weight: 700; color: {tier_color_ov};">{tier_ov.upper()}</div>
+            <div style="font-size: 1.35rem; font-weight: 700; color: {tier_color_ov};">{tier_ov.upper()}</div>
             <div style="font-size: 0.72rem; color: {COLOR_TEXT_SECONDARY};">Random Forest (200 trees)</div>
         </div>
     </div>
 
-    <div style="background-color: {COLOR_DARK_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 0.75rem 1rem; font-size: 0.8rem; line-height: 1.5; color: {COLOR_TEXT_SECONDARY};">
-        <b style="color: {COLOR_TEXT_PRIMARY};">Forecast Provenance:</b>
-        Provider: <b>{fc_data['provider']}</b> &nbsp;|&nbsp;
-        Retrieved: <code>{fc_data['retrieval_time']}</code><br/>
-        Valid Target: <code>{fc_data['forecast_time'].strftime('%Y-%m-%d %H:%M UTC')}</code><br/>
-        Vegetation Observation: <code>{veg_src_ov} ({veg_dt_ov})</code>
+    <div style="background-color: {COLOR_DARK_NAVY}; border: 1px solid {COLOR_BORDER}; border-radius: 6px; padding: 0.65rem 0.85rem; font-size: 0.78rem; line-height: 1.5; color: {COLOR_TEXT_SECONDARY};">
+        <b style="color: {COLOR_TEXT_PRIMARY};">Data Provenance:</b>
+        Weather: <b>Open-Meteo</b> ({fc_data['retrieval_time']})<br/>
+        Target: <code>{fc_data['forecast_time'].strftime('%Y-%m-%d %H:%M UTC')}</code> &nbsp;|&nbsp;
+        Fuels: <code>{veg_src_ov} ({veg_dt_ov})</code>
     </div>
 </div>
 """
                         render_html(html_ov_res)
 
-                        # Compact weather metrics
+                        # Weather metrics
                         w1, w2, w3, w4 = st.columns(4)
                         with w1:
                             st.metric("Air Temp", f"{fc_data['t2m_c']:.1f} °C")
@@ -366,9 +385,9 @@ def render_overview_page():
                         with w3:
                             st.metric("Wind Speed", f"{fc_data['wind_speed']:.1f} m/s")
                         with w4:
-                            st.metric("VPD (Dryness)", f"{fc_data['vpd_kpa']:.2f} kPa")
+                            st.metric("VPD Dryness", f"{fc_data['vpd_kpa']:.2f} kPa")
 
-                        # Single-cell 3D spotlight
+                        # Single-cell geographic map preview
                         render_single_cell_3d_twin(
                             target_lat=exec_lat,
                             target_lon=exec_lon,
@@ -379,44 +398,44 @@ def render_overview_page():
                             wind_speed=fc_data["wind_speed"],
                             elev=cell_meta["elevation"],
                             land_cover_name=cell_meta["land_cover_name"],
-                            mode_label="Overview Live Forecast",
-                            height=360,
+                            mode_label="Overview Quick Predict",
+                            basemap_style=basemap_choice,
+                            height=320,
                         )
                 except ValueError as ve:
-                    st.error(f"Weather / Input Verification Error: {ve}")
-                    st.info("Live prediction was blocked because required weather data could not be verified from the API. The system refuses to use synthetic or placeholder fallback data.")
+                    st.error(f"Weather Verification Notice: {ve}")
+                    st.info("Live prediction was blocked because required weather data could not be verified from the API.")
                 except Exception as e:
-                    logger.exception(f"Unexpected error in overview live forecast: {e}")
                     st.error(f"Inference Blocked: {str(e)}")
 
-    # 4. Numbered Pipeline / Process Workflow Section
-    render_section_header("🔄 Pipeline & Architecture Workflow", tag="END-TO-END SPECIFICATION")
+    # 5. Numbered Pipeline / Process Workflow Section
+    render_section_header("🔄 End-to-End Prediction Architecture", tag="METHODOLOGICAL SPECIFICATION")
 
     w1, w2, w3, w4 = st.columns(4)
     with w1:
         render_workflow_card(
             step="01 // DATA INGESTION",
-            title="ERA5 & Spaceborne Fusion",
-            description="17,544 hourly ERA5 timesteps and spaceborne thermal active fire observations extracted across 1,677 California cells.",
+            title="Copernicus ERA5 & NASA Sensors",
+            description="Hourly reanalysis covering temperature, dewpoint, pressure, and wind vectors fused with NASA FIRMS active fire detections and MODIS biophysical fuel layers.",
         )
     with w2:
         render_workflow_card(
             step="02 // FEATURE ENGINEERING",
-            title="Spatiotemporal Lagging",
-            description="33 causal features engineered including 24h/7d/30d antecedent precipitation deficits, VPD, and wind shear vectors.",
+            title="33 Spatiotemporal Covariates",
+            description="Causal feature extraction including 24h/7d/30d cumulative precipitation deficits, vapor pressure deficit (VPD), wind shear vectors, and cyclical seasonality.",
         )
     with w3:
         render_workflow_card(
-            step="03 // CLASSIFIER TRAINING",
-            title="RandomForest Pipeline",
-            description="Scikit-learn Pipeline with ColumnTransformer, StandardScaler, OneHotEncoder, and 200-tree balanced RandomForest.",
+            step="03 // MODEL TRAINING",
+            title="Balanced Random Forest Pipeline",
+            description="Scikit-learn Pipeline with ColumnTransformer, StandardScaler, OneHotEncoder, and 200-tree balanced ensemble trained with a strict 24h causal embargo.",
         )
     with w4:
         render_workflow_card(
-            step="04 // RISK STRATIFICATION",
-            title="Decision Rule & 3D Twin",
-            description="F₂-score threshold optimization (0.2507) and real-time inference dispatch integrated with 3D deck.gl topographic rendering.",
+            step="04 // OPERATIONAL TUNING",
+            title="F₂ Decision Threshold (0.2507)",
+            description="Operational threshold optimized to prioritize recall (capturing 70.8% of fires), paired with Bayesian prior-shift calibration to California's natural 6.04% fire rate.",
         )
 
-    # 5. Operational Scope & Boundary Disclosure
+    # 6. Operational Governance Notice
     render_operational_notice()

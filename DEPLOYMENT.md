@@ -11,10 +11,13 @@
 
 | Hosting Platform | Suitability | RAM Limit | Large File Handling | Notes |
 |---|---|---|---|---|
-| **Streamlit Community Cloud** | Suitable with Git LFS / External Storage | ~1 GB RAM | Git LFS or S3 download | Fits model (91 MB) and schema (4 KB). For NetCDF (414 MB), use external blob storage (AWS S3 or GCS) or compact extract. |
+| **Streamlit Community Cloud** | Suitable with Git LFS / External Storage | ~1 GB RAM | Git LFS or S3 download | Fits model (91 MB) and schema (4 KB). For NetCDF (414 MB), uses embedded parquet fallbacks or external blob storage. |
 | **Hugging Face Spaces (Docker)** | Highly Recommended | 16 GB RAM (Free) | Direct upload or Git LFS | Effortlessly loads full 414 MB NetCDF in memory without resource starvation. |
 | **Google Cloud Run / AWS ECS** | Recommended for Enterprise | Configurable (2–8 GB) | Mounted Cloud Storage Bucket | Predictable latency, autoscaling, containerized isolation. |
 | **Self-Hosted VPS (Linux/Ubuntu)** | Highly Recommended | 4+ GB RAM | Local disk storage | Direct checkout, instant execution, zero cloud memory caps. |
+| **Vercel (Serverless)** | ❌ Not Suitable for ML Backend | 250 MB Function Cap | Not Supported | Bundle limit (<250 MB) rejects scikit-learn+scipy+pandas (~450 MB) and 91 MB model. See `ARCHITECTURE_AND_VERCEL_EVALUATION.md`. |
+
+*(For a comprehensive technical analysis of decoupled architectures and Vercel hosting constraints, see [ARCHITECTURE_AND_VERCEL_EVALUATION.md](ARCHITECTURE_AND_VERCEL_EVALUATION.md)).*
 
 ---
 
@@ -25,11 +28,14 @@ Before launching in any target environment, verify that the following files exis
 ```text
 ├── feature_schema.json               # Required (4.33 KB) - Model feature contract & metadata
 ├── wildfire_model_pipeline.joblib    # Required (91.01 MB) - Trained scikit-learn pipeline
-├── wildfire.jpg                      # Required (520 KB) - Official project logo
-└── master_dataset_2024_2025.nc       # Recommended (414.57 MB) - Required for 3D Twin & spatial maps
+├── wildfire.png / wildfire.jpg       # Required - Official project branding logo
+├── assets/
+│   ├── curated_snapshots.parquet     # Required (492 KB) - 3D Digital Twin snapshot fallback
+│   └── california_grid_static.parquet# Required (24 KB) - Grid elevation & static features fallback
+└── master_dataset_2024_2025.nc       # Optional (414.57 MB) - Full NetCDF dataset (temporal queries)
 ```
 
-*Note: If `master_dataset_2024_2025.nc` is absent on lean deployments, the app degrades gracefully: point predictions, model evaluation metrics, and methodology remain fully functional, while the 3D twin and overview map display an informative missing-dataset guide.*
+*Note: If `master_dataset_2024_2025.nc` is absent on lean deployments (such as Streamlit Community Cloud with strict memory limits), the app utilizes `assets/curated_snapshots.parquet` and `assets/california_grid_static.parquet` for immediate statewide risk rendering and Open-Meteo API for real-time predictions without crashing or missing data.*
 
 ---
 
@@ -60,10 +66,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source code and assets
+COPY assets/ ./assets/
 COPY src/ ./src/
 COPY pages_impl/ ./pages_impl/
 COPY .streamlit/ ./.streamlit/
-COPY app.py feature_schema.json wildfire_model_pipeline.joblib wildfire.jpg ./
+COPY app.py feature_schema.json wildfire_model_pipeline.joblib wildfire.png wildfire.jpg ./
 
 # Optionally copy NetCDF dataset (or mount via volume)
 COPY master_dataset_2024_2025.nc ./
@@ -110,3 +117,23 @@ streamlit run app.py
    - Model and schema are loaded once per process lifecycle via `@st.cache_resource`.
    - Spatial slices and 30-day antecedent sequences are cached via `@st.cache_data`.
 3. **GPU WebGL Acceleration:** PyDeck utilizes client-side WebGL shaders for high-frame-rate 3D column extrusion, offloading geospatial rendering from server CPU/memory.
+
+---
+
+## 6. Map Tile Providers, Attribution & Zero-Key Configuration
+
+The application is engineered to operate out-of-the-box with **zero paid API keys or proprietary map accounts**.
+
+### Supported Basemap Providers
+
+| Basemap Style | Default Provider | Requirement | Attribution & Fair-Use Terms |
+|---|---|---|---|
+| **Satellite Imagery** | Esri World Imagery (ArcGIS MapServer) | **No Key Required** | © Esri, Maxar, Earthstar Geographics, USDA FSA, USGS, Aerogrid, IGN, IGP, and GIS User Community. Free for public non-commercial web visualization. |
+| **Terrain & Roads (Voyager)** | CARTO Voyager (Vector/Raster GL) | **No Key Required** | © [CARTO](https://carto.com/attributions), © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors. |
+| **Carto Positron (Light)** | CARTO Positron | **No Key Required** | © CARTO, © OpenStreetMap contributors. |
+| **Carto Dark** | CARTO Dark Matter | **No Key Required** | © CARTO, © OpenStreetMap contributors. |
+| **Custom Mapbox** | Mapbox GL Styles | *Optional API Key* | If set via `MAPBOX_API_KEY` environment variable or `.streamlit/secrets.toml`, Mapbox custom vector styles will be loaded. Not required. |
+
+### Environment Variables & Secrets Policy
+- **Never commit private API keys:** No API keys are hard-coded in the repository or committed to git.
+- **Graceful Fallbacks:** If network connectivity to tile servers is restricted, PyDeck renders the geospatial geometry grid on a neutral dark coordinate canvas without crashing. Open-Meteo queries fallback gracefully to historical cached distributions.

@@ -433,6 +433,10 @@ def fetch_open_meteo_forecast(lat: float, lon: float, target_datetime_str: str) 
     vpd_mean_7d = float(sub_hist["vapor_pressure_deficit"].tail(168).mean())
     t2m_mean_7d = float(sub_hist["temperature_2m"].tail(168).mean())
     wind_mean_24h = float(sub_hist["wind_speed_10m"].tail(24).mean())
+    # 24-hour sequence for the day of forecast
+    start_pos = max(0, idx_pos - actual_time.hour)
+    end_pos = min(len(df_hourly), start_pos + 25)
+    slice_24h = df_hourly.iloc[start_pos:end_pos].copy()
 
     return {
         "provider": "Open-Meteo Global Weather Model (ECMWF & GFS Ensembles)",
@@ -456,6 +460,7 @@ def fetch_open_meteo_forecast(lat: float, lon: float, target_datetime_str: str) 
         "vpd_mean_7d": vpd_mean_7d,
         "t2m_mean_7d": t2m_mean_7d,
         "wind_mean_24h": wind_mean_24h,
+        "hourly_slice": slice_24h,
     }
 
 

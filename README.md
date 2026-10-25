@@ -28,7 +28,7 @@ An enterprise-grade geospatial machine learning intelligence platform and intera
 - [Data Processing & Feature Engineering](#-data-processing--feature-engineering)
 - [Machine Learning Methodology](#-machine-learning-methodology)
 - [Evaluation & Benchmark Results](#-evaluation--benchmark-results)
-- [📌 Architecture & ML Workflow](#-architecture--ml-workflow)
+- [Architecture & ML Workflow](#-architecture--ml-workflow)
 - [Streamlit Application Walkthrough](#-streamlit-application-walkthrough)
 - [Repository Structure](#-repository-structure)
 - [Installation & Local Setup](#-installation--local-setup)

@@ -16,7 +16,6 @@ An enterprise-grade geospatial machine learning intelligence platform and intera
 ## 🚀 Live Application & Repository
 
 - **Live Streamlit Cloud Deployment:** [https://california-wildfire.streamlit.app/](https://california-wildfire.streamlit.app/)
-- **Alternative Mirror:** [https://californiawildfire-prediction-digitaltwin.streamlit.app/](https://californiawildfire-prediction-digitaltwin.streamlit.app/)
 - **GitHub Repository:** [https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin](https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin)
 
 ---

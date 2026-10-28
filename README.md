@@ -35,6 +35,7 @@ An enterprise-grade geospatial machine learning intelligence platform and intera
 - [Deployment Guide](#-deployment-guide)
 - [Scientific Limitations & Ethical Use](#-scientific-limitations--ethical-use)
 - [Author & Acknowledgments](#-author--acknowledgments)
+- [Recognition & Open-Source Inclusion](#-recognition--open-source-inclusion)
 - [License](#-license)
 
 ---
@@ -386,6 +387,18 @@ Access at `http://localhost:8501`.
 
 ---
 
+## 🌐 Recognition & Open-Source Inclusion
+
+This project is included in the **XERJ Corpus Hub**, an
+open-source ecosystem for AI-oriented search and knowledge retrieval.
+
+This inclusion provides an additional avenue for discovering
+the project within the open-source AI ecosystem.
+
+- **XERJ Contributor Profile:** [AhmedShabano0](https://hub.xerj.org/contributors/AhmedShabano0)
+- **Project Repository:** [California Wildfire Prediction & Digital Twin](https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin)
+
+---
 ## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete details.

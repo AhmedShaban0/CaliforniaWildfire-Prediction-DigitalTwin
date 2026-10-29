@@ -395,7 +395,7 @@ open-source ecosystem for AI-oriented search and knowledge retrieval.
 This inclusion provides an additional avenue for discovering
 the project within the open-source AI ecosystem.
 
-- **XERJ Contributor Profile:** [AhmedShabano0](https://hub.xerj.org/contributors/AhmedShabano0)
+- **XERJ Contributor Profile:** [AhmedShaban0](https://hub.xerj.org/contributors/AhmedShaban0)
 - **Project Repository:** [California Wildfire Prediction & Digital Twin](https://github.com/AhmedShaban0/CaliforniaWildfire-Prediction-DigitalTwin)
 
 ---
